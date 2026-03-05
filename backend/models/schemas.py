@@ -57,3 +57,42 @@ class TestArchitectureRequest(BaseModel):
     )
     prompt: str = Field(..., description="The input prompt to run through the architecture")
     rounds: int = Field(default=1, ge=1, description="Number of debate rounds (used by debate architectures)")
+
+
+# ---------------------------------------------------------------------------
+# Experiment orchestration models
+# ---------------------------------------------------------------------------
+
+
+class ExperimentConfig(BaseModel):
+    """Request body for running a full experiment."""
+
+    architecture: str = Field(
+        ..., description="Architecture name: single_agent | two_agent_debate | self_refinement"
+    )
+    dataset: str = Field(..., description="Dataset identifier (e.g. 'arithmetic')")
+    model: str = Field(default="gpt-4o", description="LLM model to use")
+    rounds: int = Field(default=1, ge=1, description="Number of debate rounds")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
+
+
+class EvaluationResult(BaseModel):
+    """Structured evaluation metrics returned by FutureAGI."""
+
+    accuracy: float | None = None
+    hallucination: float | None = None
+    coherence: float | None = None
+    safety: float | None = None
+
+
+class ExperimentResult(BaseModel):
+    """Summary returned after an experiment completes."""
+
+    experiment_id: str
+    total_runs: int
+    avg_tokens: float
+    avg_latency_ms: float
+    avg_accuracy: float | None = None
+    avg_hallucination: float | None = None
+    avg_coherence: float | None = None
+    avg_safety: float | None = None

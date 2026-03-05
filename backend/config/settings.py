@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/agentbench"
     OPENAI_API_KEY: str = ""
     FUTUREAGI_API_KEY: str = ""
+    FUTUREAGI_API_URL: str = "https://api.futureagi.com/v1/evaluate"
 
     class Config:
         env_file = str(env_path)

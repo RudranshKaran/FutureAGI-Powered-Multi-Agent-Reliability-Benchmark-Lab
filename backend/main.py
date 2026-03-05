@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.experiment_routes import router as experiment_router
 from core.architectures import ARCHITECTURE_REGISTRY
 from core.architectures.debate_two import TwoAgentDebate
 from core.llm_service import LLMService
@@ -20,6 +21,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Routers ---------------------------------------------------------------
+app.include_router(experiment_router)
 
 
 @app.get("/health")
