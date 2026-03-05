@@ -2,7 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  color: #f3f4f6;
-  background: #0b0f17;
+@layer base {
+  :root {
+    /* Dark theme mapped to FutureAGI palette */
+    --background: 220 30% 5%;       /* #0B0F17 */
+    --foreground: 220 14% 96%;      /* #F3F4F6 */
+    --card: 220 26% 11%;            /* #111827 */
+    --card-foreground: 220 14% 96%; /* #F3F4F6 */
+    --popover: 220 26% 11%;
+    --popover-foreground: 220 14% 96%;
+    --primary: 239 84% 67%;         /* #6366F1 Indigo accent */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 11% 65%;       /* #9CA3AF */
+    --secondary-foreground: 220 14% 96%;
+    --muted: 217 19% 17%;           /* #1F2937 */
+    --muted-foreground: 217 11% 65%;
+    --accent: 239 84% 67%;          /* #6366F1 */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;       /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 19% 17%;          /* #1F2937 */
+    --input: 217 19% 17%;
+    --ring: 239 84% 67%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
