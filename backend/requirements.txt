@@ -6,4 +6,5 @@ python-dotenv
 pydantic
 pydantic-settings
 alembic
+openai
 black==24.4.2

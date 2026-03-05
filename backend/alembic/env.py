@@ -1,4 +1,5 @@
 import os
+import sys
 from logging.config import fileConfig
 
 from dotenv import load_dotenv
@@ -9,6 +10,10 @@ from alembic import context
 
 # Load environment variables from .env
 load_dotenv()
+
+# Ensure the backend directory is on sys.path so that
+# "storage.database" and "models" imports resolve correctly.
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -23,11 +28,11 @@ if os.getenv("DATABASE_URL"):
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+# Import models so that Base.metadata is fully populated
+from storage.database import Base  # noqa: E402
+from models import Experiment, Run, DebateTrace, Evaluation  # noqa: E402, F401
+
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
