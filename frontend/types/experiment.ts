@@ -16,3 +16,20 @@ export interface ExperimentResult {
   avg_coherence: number | null;
   avg_safety: number | null;
 }
+
+export interface ExperimentStartResponse {
+  experiment_id: string;
+}
+
+export interface ExperimentStatus {
+  experiment_id: string;
+  status: "pending" | "running" | "completed" | "failed";
+  architecture: string;
+  dataset: string;
+  total_prompts: number;
+  completed_runs: number;
+  progress_percentage: number;
+  avg_tokens: number;
+  avg_latency_ms: number;
+  logs: string[];
+}

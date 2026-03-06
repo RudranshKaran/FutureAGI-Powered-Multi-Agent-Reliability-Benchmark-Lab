@@ -96,3 +96,29 @@ class ExperimentResult(BaseModel):
     avg_hallucination: float | None = None
     avg_coherence: float | None = None
     avg_safety: float | None = None
+
+
+# ---------------------------------------------------------------------------
+# Experiment status / monitoring models
+# ---------------------------------------------------------------------------
+
+
+class ExperimentStartResponse(BaseModel):
+    """Returned immediately when an experiment is launched (runs in background)."""
+
+    experiment_id: str
+
+
+class ExperimentStatusResponse(BaseModel):
+    """Returned by the status polling endpoint."""
+
+    experiment_id: str
+    status: str
+    architecture: str
+    dataset: str
+    total_prompts: int
+    completed_runs: int
+    progress_percentage: float
+    avg_tokens: float
+    avg_latency_ms: float
+    logs: list[str] = Field(default_factory=list)

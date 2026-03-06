@@ -54,15 +54,35 @@ class ExperimentRunner:
         # -- 2. Load dataset --------------------------------------------
         prompts = load_dataset(config.dataset)
 
-        # -- 3. Create Experiment record --------------------------------
-        experiment = Experiment(
-            architecture=config.architecture,
-            rounds=config.rounds,
-            model=config.model,
-            dataset=config.dataset,
+        # -- 3. Find existing pending experiment or create a new one ----
+        #    When launched via the API, the route pre-creates the experiment
+        #    with status="pending" so its ID can be returned immediately.
+        experiment = (
+            db.query(Experiment)
+            .filter(
+                Experiment.architecture == config.architecture,
+                Experiment.dataset == config.dataset,
+                Experiment.model == config.model,
+                Experiment.status == "pending",
+            )
+            .order_by(Experiment.created_at.desc())
+            .first()
         )
-        db.add(experiment)
-        db.flush()  # populate experiment.id
+
+        if experiment is None:
+            experiment = Experiment(
+                architecture=config.architecture,
+                rounds=config.rounds,
+                model=config.model,
+                dataset=config.dataset,
+                total_prompts=len(prompts),
+            )
+            db.add(experiment)
+            db.flush()
+
+        experiment.status = "running"  # type: ignore[assignment]
+        experiment.total_prompts = len(prompts)  # type: ignore[assignment]
+        db.commit()  # make status visible to polling
 
         # -- 4. Instantiate LLM + architecture --------------------------
         llm = LLMService(model=config.model, temperature=config.temperature)
@@ -142,6 +162,9 @@ class ExperimentRunner:
                 all_tokens.append(result.total_tokens)
                 all_latencies.append(result.total_latency_ms)
 
+                # Commit after each run so the status endpoint reflects progress
+                db.commit()
+
                 logger.info(
                     "[ExperimentRunner] Run %d/%d completed | tokens=%d latency=%.0fms",
                     idx,
@@ -149,10 +172,15 @@ class ExperimentRunner:
                     result.total_tokens,
                     result.total_latency_ms,
                 )
+        except Exception:
+            experiment.status = "failed"  # type: ignore[assignment]
+            db.commit()
+            raise
         finally:
             await evaluator.close()
 
-        # -- 7. Commit all records -------------------------------------
+        # -- 7. Mark experiment completed ------------------------------
+        experiment.status = "completed"  # type: ignore[assignment]
         db.commit()
 
         # -- 8. Compute derived metrics --------------------------------
