@@ -10,12 +10,20 @@ from sqlalchemy.orm import Session
 
 from core.orchestrator import ExperimentRunner
 from models.debate_trace import DebateTrace
+from models.evaluation import Evaluation
 from models.experiment import Experiment
 from models.run import Run
 from models.schemas import (
     ExperimentConfig,
+    ExperimentResultsResponse,
     ExperimentStartResponse,
     ExperimentStatusResponse,
+    ExperimentSummary,
+    ArchitectureComparisonItem,
+    TokenAccuracyPoint,
+    RoundImprovement,
+    PromptBreakdown,
+    DebateTraceEntry,
 )
 from storage.database import SessionLocal, get_db
 
@@ -106,11 +114,11 @@ async def get_experiment_status(
     total_prompts = experiment.total_prompts or 0
 
     # Count completed runs (runs are only inserted after execution succeeds)
-    completed_runs = (
+    completed_runs: int = (
         db.query(sa_func.count(Run.id))
         .filter(Run.experiment_id == exp_uuid)
-        .scalar()
-    ) or 0
+        .scalar() or 0
+    )
 
     # Compute averages from completed runs
     avg_row = (
@@ -121,8 +129,8 @@ async def get_experiment_status(
         .filter(Run.experiment_id == exp_uuid)
         .first()
     )
-    avg_tokens = round(float(avg_row[0] or 0), 2)
-    avg_latency_ms = round(float(avg_row[1] or 0), 2)
+    avg_tokens = round(float(avg_row[0] or 0), 2) if avg_row else 0.0
+    avg_latency_ms = round(float(avg_row[1] or 0), 2) if avg_row else 0.0
 
     progress_percentage = (
         round(completed_runs / total_prompts * 100, 1) if total_prompts > 0 else 0.0
@@ -140,7 +148,7 @@ async def get_experiment_status(
 
     logs: list[str] = []
     for t in traces:
-        preview = t.response[:120] if t.response else ""
+        preview = (t.response or "")[:120]
         entry = (
             f"[Agent {t.agent_role} | Turn {t.turn_number} | "
             f"{t.latency_ms:.0f}ms | {t.tokens} tokens] {preview}"
@@ -158,4 +166,170 @@ async def get_experiment_status(
         avg_tokens=avg_tokens,
         avg_latency_ms=avg_latency_ms,
         logs=logs,
+    )
+
+
+@router.get("/{experiment_id}/results", response_model=ExperimentResultsResponse)
+async def get_experiment_results(
+    experiment_id: str,
+    db: Session = Depends(get_db),
+):
+    """Return full analytics data for a completed experiment."""
+
+    try:
+        exp_uuid = UUID(experiment_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid experiment ID format")
+
+    experiment = db.query(Experiment).filter(Experiment.id == exp_uuid).first()
+    if experiment is None:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    if experiment.status != "completed":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Experiment is '{experiment.status}', results are only available for completed experiments",
+        )
+
+    # ---- Summary metrics ----
+    summary_row = (
+        db.query(
+            sa_func.avg(Evaluation.accuracy),
+            sa_func.avg(Evaluation.hallucination),
+            sa_func.avg(Run.total_tokens),
+            sa_func.avg(Run.total_latency_ms),
+        )
+        .join(Run, Evaluation.run_id == Run.id)
+        .filter(Run.experiment_id == exp_uuid)
+        .first()
+    )
+
+    if summary_row:
+        summary = ExperimentSummary(
+            avg_accuracy=round(float(summary_row[0]), 4) if summary_row[0] is not None else None,
+            avg_hallucination=round(float(summary_row[1]), 4) if summary_row[1] is not None else None,
+            avg_tokens=round(float(summary_row[2] or 0), 2),
+            avg_latency_ms=round(float(summary_row[3] or 0), 2),
+        )
+    else:
+        summary = ExperimentSummary()
+
+    # ---- Architecture comparison (all completed experiments on same dataset) ----
+    arch_rows = (
+        db.query(
+            Experiment.architecture,
+            sa_func.avg(Evaluation.accuracy),
+        )
+        .join(Run, Run.experiment_id == Experiment.id)
+        .join(Evaluation, Evaluation.run_id == Run.id)
+        .filter(
+            Experiment.dataset == experiment.dataset,
+            Experiment.status == "completed",
+            Evaluation.accuracy.isnot(None),
+        )
+        .group_by(Experiment.architecture)
+        .all()
+    )
+
+    architecture_comparison = [
+        ArchitectureComparisonItem(
+            architecture=row[0],
+            accuracy=round(float(row[1]), 4),
+        )
+        for row in arch_rows
+    ]
+
+    # ---- Token vs Accuracy scatter points ----
+    ta_rows = (
+        db.query(Run.total_tokens, Evaluation.accuracy)
+        .join(Evaluation, Evaluation.run_id == Run.id)
+        .filter(
+            Run.experiment_id == exp_uuid,
+            Evaluation.accuracy.isnot(None),
+        )
+        .all()
+    )
+
+    token_accuracy_points = [
+        TokenAccuracyPoint(tokens=int(row[0]), accuracy=round(float(row[1]), 4))
+        for row in ta_rows
+    ]
+
+    # ---- Round improvement (same dataset + architecture, grouped by rounds) ----
+    round_rows = (
+        db.query(
+            Experiment.rounds,
+            sa_func.avg(Evaluation.accuracy),
+        )
+        .join(Run, Run.experiment_id == Experiment.id)
+        .join(Evaluation, Evaluation.run_id == Run.id)
+        .filter(
+            Experiment.dataset == experiment.dataset,
+            Experiment.architecture == experiment.architecture,
+            Experiment.status == "completed",
+            Evaluation.accuracy.isnot(None),
+        )
+        .group_by(Experiment.rounds)
+        .order_by(Experiment.rounds)
+        .all()
+    )
+
+    round_improvement = [
+        RoundImprovement(rounds=int(row[0]), accuracy=round(float(row[1]), 4))
+        for row in round_rows
+    ]
+
+    # ---- Prompt breakdown with debate traces ----
+    runs = (
+        db.query(Run)
+        .filter(Run.experiment_id == exp_uuid)
+        .order_by(Run.id)
+        .all()
+    )
+
+    prompt_breakdown: list[PromptBreakdown] = []
+    for run in runs:
+        eval_row = (
+            db.query(Evaluation)
+            .filter(Evaluation.run_id == run.id)
+            .first()
+        )
+
+        traces = (
+            db.query(DebateTrace)
+            .filter(DebateTrace.run_id == run.id)
+            .order_by(DebateTrace.turn_number)
+            .all()
+        )
+
+        prompt_breakdown.append(
+            PromptBreakdown(
+                prompt=run.prompt,
+                final_output=run.final_output,
+                accuracy=eval_row.accuracy if eval_row and eval_row.accuracy is not None else None,
+                tokens=run.total_tokens,
+                latency_ms=run.total_latency_ms,
+                debate_traces=[
+                    DebateTraceEntry(
+                        agent_role=t.agent_role,
+                        turn_number=t.turn_number,
+                        response=t.response,
+                        tokens=t.tokens,
+                        latency_ms=t.latency_ms,
+                    )
+                    for t in traces
+                ],
+            )
+        )
+
+    return ExperimentResultsResponse(
+        experiment_id=experiment_id,
+        architecture=experiment.architecture,
+        dataset=experiment.dataset,
+        rounds=experiment.rounds,
+        summary=summary,
+        architecture_comparison=architecture_comparison,
+        token_accuracy_points=token_accuracy_points,
+        round_improvement=round_improvement,
+        prompt_breakdown=prompt_breakdown,
     )

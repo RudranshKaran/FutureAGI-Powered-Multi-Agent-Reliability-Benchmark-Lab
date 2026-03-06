@@ -1,6 +1,7 @@
 import axios from "axios";
 import type {
   ExperimentConfig,
+  ExperimentResultsResponse,
   ExperimentStartResponse,
   ExperimentStatus,
 } from "@/types/experiment";
@@ -33,6 +34,15 @@ export async function getExperimentStatus(
 
 export async function healthCheck(): Promise<{ status: string }> {
   const { data } = await api.get<{ status: string }>("/health");
+  return data;
+}
+
+export async function getExperimentResults(
+  experimentId: string
+): Promise<ExperimentResultsResponse> {
+  const { data } = await api.get<ExperimentResultsResponse>(
+    `/experiments/${encodeURIComponent(experimentId)}/results`
+  );
   return data;
 }
 

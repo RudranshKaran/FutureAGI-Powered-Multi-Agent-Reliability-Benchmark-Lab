@@ -122,3 +122,65 @@ class ExperimentStatusResponse(BaseModel):
     avg_tokens: float
     avg_latency_ms: float
     logs: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Experiment results / analytics models
+# ---------------------------------------------------------------------------
+
+
+class DebateTraceEntry(BaseModel):
+    """A single debate trace step for display in prompt breakdown."""
+
+    agent_role: str
+    turn_number: int
+    response: str
+    tokens: int
+    latency_ms: float
+
+
+class PromptBreakdown(BaseModel):
+    """Per-prompt result with optional debate traces."""
+
+    prompt: str
+    final_output: str | None = None
+    accuracy: float | None = None
+    tokens: int = 0
+    latency_ms: float = 0.0
+    debate_traces: list[DebateTraceEntry] = Field(default_factory=list)
+
+
+class ArchitectureComparisonItem(BaseModel):
+    architecture: str
+    accuracy: float
+
+
+class TokenAccuracyPoint(BaseModel):
+    tokens: int
+    accuracy: float
+
+
+class RoundImprovement(BaseModel):
+    rounds: int
+    accuracy: float
+
+
+class ExperimentSummary(BaseModel):
+    avg_accuracy: float | None = None
+    avg_hallucination: float | None = None
+    avg_tokens: float = 0.0
+    avg_latency_ms: float = 0.0
+
+
+class ExperimentResultsResponse(BaseModel):
+    """Full analytics response for a completed experiment."""
+
+    experiment_id: str
+    architecture: str
+    dataset: str
+    rounds: int
+    summary: ExperimentSummary
+    architecture_comparison: list[ArchitectureComparisonItem] = Field(default_factory=list)
+    token_accuracy_points: list[TokenAccuracyPoint] = Field(default_factory=list)
+    round_improvement: list[RoundImprovement] = Field(default_factory=list)
+    prompt_breakdown: list[PromptBreakdown] = Field(default_factory=list)

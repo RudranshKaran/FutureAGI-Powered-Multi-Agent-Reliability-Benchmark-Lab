@@ -33,3 +33,58 @@ export interface ExperimentStatus {
   avg_latency_ms: number;
   logs: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Experiment results / analytics types
+// ---------------------------------------------------------------------------
+
+export interface DebateTraceEntry {
+  agent_role: string;
+  turn_number: number;
+  response: string;
+  tokens: number;
+  latency_ms: number;
+}
+
+export interface PromptBreakdown {
+  prompt: string;
+  final_output: string | null;
+  accuracy: number | null;
+  tokens: number;
+  latency_ms: number;
+  debate_traces: DebateTraceEntry[];
+}
+
+export interface ArchitectureComparisonItem {
+  architecture: string;
+  accuracy: number;
+}
+
+export interface TokenAccuracyPoint {
+  tokens: number;
+  accuracy: number;
+}
+
+export interface RoundImprovement {
+  rounds: number;
+  accuracy: number;
+}
+
+export interface ExperimentSummary {
+  avg_accuracy: number | null;
+  avg_hallucination: number | null;
+  avg_tokens: number;
+  avg_latency_ms: number;
+}
+
+export interface ExperimentResultsResponse {
+  experiment_id: string;
+  architecture: string;
+  dataset: string;
+  rounds: number;
+  summary: ExperimentSummary;
+  architecture_comparison: ArchitectureComparisonItem[];
+  token_accuracy_points: TokenAccuracyPoint[];
+  round_improvement: RoundImprovement[];
+  prompt_breakdown: PromptBreakdown[];
+}

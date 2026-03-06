@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { getExperimentStatus } from "@/lib/api";
 import type { ExperimentStatus } from "@/types/experiment";
 import StatusBanner from "@/components/experiments/StatusBanner";
@@ -9,12 +9,14 @@ import ProgressBar from "@/components/experiments/ProgressBar";
 import MetricsPanel from "@/components/experiments/MetricsPanel";
 import LogsPanel from "@/components/experiments/LogsPanel";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 const POLL_INTERVAL = 2000;
 
 export default function ExperimentMonitorPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const experimentId = params.id;
 
   const [status, setStatus] = useState<ExperimentStatus | null>(null);
@@ -120,6 +122,16 @@ export default function ExperimentMonitorPage() {
 
       {/* Logs Panel */}
       <LogsPanel logs={status.logs} />
+
+      {/* View Results button — shown when experiment completes */}
+      {status.status === "completed" && (
+        <Button
+          className="w-full"
+          onClick={() => router.push(`/experiments/${experimentId}/results`)}
+        >
+          View Results
+        </Button>
+      )}
     </div>
   );
 }
