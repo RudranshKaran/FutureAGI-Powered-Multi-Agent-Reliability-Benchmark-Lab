@@ -172,6 +172,26 @@ class ExperimentSummary(BaseModel):
     avg_latency_ms: float = 0.0
 
 
+class AdvancedMetrics(BaseModel):
+    """Research-grade derived metrics for experiment analysis."""
+
+    improvement_per_token: float | None = None
+    latency_overhead_percent: float | None = None
+    convergence_score: float | None = None
+    accuracy_variance: float | None = None
+    accuracy_std: float | None = None
+    accuracy_mean: float | None = None
+    confidence_interval: list[float] | None = None
+    stability_score: float | None = None
+
+
+class ConvergenceTurn(BaseModel):
+    """Per-turn similarity data for convergence visualization."""
+
+    turn: int
+    similarity: float
+
+
 class ExperimentResultsResponse(BaseModel):
     """Full analytics response for a completed experiment."""
 
@@ -184,3 +204,5 @@ class ExperimentResultsResponse(BaseModel):
     token_accuracy_points: list[TokenAccuracyPoint] = Field(default_factory=list)
     round_improvement: list[RoundImprovement] = Field(default_factory=list)
     prompt_breakdown: list[PromptBreakdown] = Field(default_factory=list)
+    advanced_metrics: AdvancedMetrics | None = None
+    convergence_turns: list[ConvergenceTurn] = Field(default_factory=list)

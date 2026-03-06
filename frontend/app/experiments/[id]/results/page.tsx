@@ -12,6 +12,9 @@ import AccuracyChart from "@/components/results/AccuracyChart";
 import TokenAccuracyChart from "@/components/results/TokenAccuracyChart";
 import RoundsImprovementChart from "@/components/results/RoundsImprovementChart";
 import PromptBreakdownTable from "@/components/results/PromptBreakdownTable";
+import AdvancedMetricsPanel from "@/components/results/AdvancedMetricsPanel";
+import ConvergenceChart from "@/components/results/ConvergenceChart";
+import { Separator } from "@/components/ui/separator";
 
 const archLabels: Record<string, string> = {
   single_agent: "Single Agent",
@@ -117,6 +120,27 @@ export default function ExperimentResultsPage() {
       {/* Prompt Breakdown */}
       {results.prompt_breakdown.length > 0 && (
         <PromptBreakdownTable data={results.prompt_breakdown} />
+      )}
+
+      {/* Advanced Analysis Section */}
+      {results.advanced_metrics && (
+        <>
+          <Separator className="my-2" />
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-1">
+              Advanced Analysis
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Research-grade metrics for efficiency, stability, and convergence
+            </p>
+          </div>
+
+          <AdvancedMetricsPanel metrics={results.advanced_metrics} />
+
+          {results.convergence_turns.length > 0 && (
+            <ConvergenceChart data={results.convergence_turns} />
+          )}
+        </>
       )}
     </div>
   );

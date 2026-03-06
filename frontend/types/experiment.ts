@@ -77,6 +77,22 @@ export interface ExperimentSummary {
   avg_latency_ms: number;
 }
 
+export interface AdvancedMetrics {
+  improvement_per_token: number | null;
+  latency_overhead_percent: number | null;
+  convergence_score: number | null;
+  accuracy_variance: number | null;
+  accuracy_std: number | null;
+  accuracy_mean: number | null;
+  confidence_interval: [number, number] | null;
+  stability_score: number | null;
+}
+
+export interface ConvergenceTurn {
+  turn: number;
+  similarity: number;
+}
+
 export interface ExperimentResultsResponse {
   experiment_id: string;
   architecture: string;
@@ -87,4 +103,6 @@ export interface ExperimentResultsResponse {
   token_accuracy_points: TokenAccuracyPoint[];
   round_improvement: RoundImprovement[];
   prompt_breakdown: PromptBreakdown[];
+  advanced_metrics: AdvancedMetrics | null;
+  convergence_turns: ConvergenceTurn[];
 }

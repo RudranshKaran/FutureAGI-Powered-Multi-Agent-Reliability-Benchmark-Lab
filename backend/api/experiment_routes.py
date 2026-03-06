@@ -25,6 +25,7 @@ from models.schemas import (
     PromptBreakdown,
     DebateTraceEntry,
 )
+from core.advanced_metrics import compute_advanced_metrics
 from storage.database import SessionLocal, get_db
 
 logger = logging.getLogger(__name__)
@@ -322,6 +323,9 @@ async def get_experiment_results(
             )
         )
 
+    # ---- Advanced metrics ----
+    advanced_metrics, convergence_turns = compute_advanced_metrics(db, experiment)
+
     return ExperimentResultsResponse(
         experiment_id=experiment_id,
         architecture=experiment.architecture,
@@ -332,4 +336,6 @@ async def get_experiment_results(
         token_accuracy_points=token_accuracy_points,
         round_improvement=round_improvement,
         prompt_breakdown=prompt_breakdown,
+        advanced_metrics=advanced_metrics,
+        convergence_turns=convergence_turns,
     )
